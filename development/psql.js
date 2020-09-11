@@ -1,11 +1,12 @@
+require('dotenv').config();
 const pgp = require('pg-promise')({});
 
 const cn = {
-    host: 'aad5v3srq1hrpx.clulrco1s8ry.us-east-2.rds.amazonaws.com', // server name or IP address;
+    host: process.env.HOST, // server name or IP address;
     port: 5432,
-    database: 'ebdb',
-    user: 'zmartboard',
-    password: 'Smartboard2'
+    database: process.env.DB,
+    user: process.env.USER,
+    password: process.env.PASS
 };
 
 // alternative:

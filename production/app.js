@@ -25,25 +25,37 @@ router.post('/dialogflow', async (req, res) => {
         request: req,
         response: res
     });
-
     console.log(req.body);
     console.log(req.body.queryResult.fulfillmentMessages);
-    console.log(req.body.queryResult.outputContexts[0]);
-
+    console.log(req.body.queryResult.outputContexts);
 
     if (req.body.queryResult.action == "full-test") {
+
         let query = req.body.queryResult.queryText
-        let contador = 0
         let info = await repos(query)
+
+        let output = req.body.queryResult.outputContexts;
+        let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
+        output.push({
+            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+            "lifespanCount": 20,
+            "parameters": {
+                "contadorIntento": 1,
+                "data": info,
+            }
+        }); 
+
         res.json({
+            "outputContexts": output,
             "followupEventInput": {
                 "name": "TEST_ACTION",
                 "languageCode": "en-US",
                 "parameters": {
-                    "info": info
-                }
-            }
+                    "info": info[0].solution
+                  }
+              }
         });      
+        return;
     }
 
     if (req.body.queryResult.intent.displayName == 'Tasks_Productivity') {
@@ -60,6 +72,7 @@ router.post('/dialogflow', async (req, res) => {
             });
             return;
         }
+
         let data = await query_psql(
             "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id",
             [user_id]
@@ -88,6 +101,7 @@ router.post('/dialogflow', async (req, res) => {
                 "fulfillmentText": "No hay proyectos"
             });
         }
+        return;
     }
 
     if (req.body.queryResult.action == 'project_number') {
@@ -98,7 +112,6 @@ router.post('/dialogflow', async (req, res) => {
             let info = await tasks_productivity(data[0]);
             let resp = "No hay tareas asignadas para usted."
             info["fullfilmentText"]["blocks"].forEach(block => {
-                console.log(block);
                 if (block["text"]["text"].includes(username)) {
                     resp = block["text"]["text"];
                     return;
@@ -113,146 +126,100 @@ router.post('/dialogflow', async (req, res) => {
                 "fulfillmentText": "No existe ese proyecto"
             });
         }
+        return;
     }
 
     if (req.body.queryResult.action == "NO_Gracias") {
-    res.json({
+        res.json({
             "fulfillmentText": "OK, será para la Próxima"
         });
+        return;
     }
-    
-    if (req.body.queryResult.action == "SI_Gracias") {
-        contador = contador +1
-        switch (contador) {
-            case 1:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(1,2)
-                        }
-                    }
-                }); 
-                
-                break;
-            case 2:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(2,3)
-                        }
-                    }
-                }); 
-            case 3:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(3,4)
-                        }
-                    }
-                }); 
-                break;  
-            case 4:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(4,5)
-                        }
-                    }
-                }); 
-                break;
-            case 5:
-                res.json({
-                    "fulfillmentText": "no tenemos mas respuestas, gracias"
-                });
-                break;  
-        
-            default:
-                break;
-        }
-    
-        console.log("variable"+contador)
-        
-    }     
-
-    if(req.body.queryResult.action == "Quiere_Probar_otra_Respuesta.Quiere_Probar_otra_Respuesta-yes"){
-        //  res.json({
-        //      "fulfillmentText": followerList.slice(1,2)
-        //  });
-        contador = contador +1
-        switch (contador) {
-            case 1:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(1,2)
-                        }
-                    }
-                }); 
-                
-                break;
-            case 2:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(2,3)
-                        }
-                    }
-                }); 
-            case 3:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(3,4)
-                        }
-                    }
-                }); 
-                break;  
-            case 4:
-                res.json({
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "info": followerList.slice(4,5)
-                        }
-                    }
-                }); 
-                break;
-            case 5:
-                res.json({
-                    "fulfillmentText": "no tenemos mas respuestas, gracias"
-                });
-                break;  
-        
-            default:
-                break;
-        }
-    
-        console.log("variable"+contador)
-        
-    }     
 
     if(req.body.queryResult.action == "Quiere_Probar_otra_Respuesta.Quiere_Probar_otra_Respuesta-no"){
         res.json({
             "fulfillmentText": "OK, será para la Próxima"
         });
+        return;
     }     
+     
+    if (req.body.queryResult.action == "SI_Gracias") {
+        let contexto = agent.getContext("recommendation-data");
+        let contador = contexto.parameters.contadorIntento + 1;
+        contexto.parameters.contadorIntento += 1;
+        let data = contexto.parameters.data;
+        
+        let output = req.body.queryResult.outputContexts;
+        let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
+        output.push({
+            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+            "lifespanCount": 20,
+            "parameters": {
+                "contadorIntento": contador,
+                "data": contexto.parameters.data,
+            }
+        }); 
 
-
+        switch (contador) {
+            case 2:
+                res.json({
+                    "outputContexts": output,
+                    "followupEventInput": {
+                        "name": "TEST_ACTION",
+                        "languageCode": "en-US",
+                        "parameters": {
+                            "info": data[contador - 1].solution
+                          }
+                      }
+                }); 
+                
+                break;
+            case 3:
+                res.json({
+                    "outputContexts": output,
+                    "followupEventInput": {
+                        "name": "TEST_ACTION",
+                        "languageCode": "en-US",
+                        "parameters": {
+                            "info": data[contador - 1].solution
+                          }
+                      }
+                }); 
+            case 4:
+                res.json({
+                    "outputContexts": output,
+                    "followupEventInput": {
+                        "name": "TEST_ACTION",
+                        "languageCode": "en-US",
+                        "parameters": {
+                            "info": data[contador - 1].solution
+                          }
+                      }
+                }); 
+                break;  
+            case 5:
+                res.json({
+                    "outputContexts": output,
+                    "followupEventInput": {
+                        "name": "TEST_ACTION",
+                        "languageCode": "en-US",
+                        "parameters": {
+                            "info": data[contador - 1].solution
+                          }
+                      }
+                }); 
+                break;
+            case 6:
+                res.json({
+                    "fulfillmentText": "No tenemos más respuestas, muchas gracias."
+                   });
+                break;  
+        
+            default:
+                break;
+        }
+        return;
+    }     
 
 });
 
@@ -260,7 +227,12 @@ const repos = async(User_Query) => {
     try {
         let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?query=${User_Query}`);
         let json = await response.json();
-        let followerList =  await json.map(repo => repo.solution);
+        let followerList =  await json.map((repo) => {
+            return {
+            "id": repo.id,
+            "solution": repo.solution
+            }
+        });
         return followerList
 
     } catch (error) {

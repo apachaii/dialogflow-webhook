@@ -126,10 +126,11 @@ app.post('/',  async(req, res) => {
         res.json({
             "fulfillmentText": "OK, será para la Próxima"
         });
+        return
     }
      
     if (req.body.queryResult.action == "SI_Gracias") {
-        let contexto = agent.context.get("recommendation-data");
+        let contexto = agent.getContext("recommendation-data");
         // console.log(contexto);
         let contador = contexto.parameters.contadorIntento + 1;
         contexto.parameters.contadorIntento += 1;

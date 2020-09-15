@@ -6,6 +6,8 @@ const app = express();
 const {WebhookClient, Image, Payload, Card, Suggestion, Platforms} = require('dialogflow-fulfillment');
 const { text } = require("body-parser");
 const { query_psql } = require("./psql");
+const { query_psql_lesson } = require("./psql_lesson");
+require('dotenv').config();
 let contador = 0
 const port = process.env.PORT || 3000;
 const ip = process.env.IP || "127.0.0.1";
@@ -23,32 +25,39 @@ app.post('/',  async(req, res) => {
     console.log(req.body.queryResult.outputContexts);
 
     if (req.body.queryResult.action == "full-test") {
+        
+        try {
+            let query = req.body.queryResult.queryText
+            contador = 0
+            let info = await repos(query)
 
-        let query = req.body.queryResult.queryText
-         contador = 0
-        let info = await repos(query)
-
-        let output = req.body.queryResult.outputContexts;
-        let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
-        output.push({
-            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
-            "lifespanCount": 20,
-            "parameters": {
-                "contadorIntento": 1,
-                "data": info,
-            }
-        }); 
-
-        res.json({
-            "outputContexts": output,
-            "followupEventInput": {
-                "name": "TEST_ACTION",
-                "languageCode": "en-US",
+            let output = req.body.queryResult.outputContexts;
+            let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
+            output.push({
+                "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+                "lifespanCount": 20,
                 "parameters": {
-                    "info": info[0].solution
-                  }
-              }
-        });      
+                    "contadorIntento": 1,
+                    "data": info,
+                }
+            }); 
+
+            res.json({
+                "outputContexts": output,
+                "followupEventInput": {
+                    "name": "TEST_ACTION",
+                    "languageCode": "en-US",
+                    "parameters": {
+                        "info": info[0].solution,
+                        "lessonId": info[0].id
+                    }
+                }
+            });   
+        } catch (e) {
+            console.log(e);
+            res.json({"fulfillmentText": "Intente nuevamente"});
+            return;
+        }   
     }
 
     if (req.body.queryResult.intent.displayName == 'Tasks_Productivity') {
@@ -121,6 +130,36 @@ app.post('/',  async(req, res) => {
             });
         }
     }
+    
+    if (req.body.queryResult.action == "number_eval") {
+        let contexto = agent.getContext("numeros-eval");
+        let user_id = 'cc7baf7c-839b-41ea-b791-a416a3b0ee92';
+        let rec_context = agent.getContext("recommendation-data");
+        try {
+            let numberEval = contexto.parameters.numberEval;
+            let lessonNumber = rec_context.parameters.lessonId;
+            let attempt = rec_context.parameters.contadorIntento;
+            user_id = req.body.originalDetectIntentRequest.payload.userId;
+            console.log(numberEval, lessonNumber, attempt, user_id);
+            if ( numberEval != undefined && 
+                lessonNumber != undefined && 
+                attempt != undefined && 
+                user_id != undefined ) {
+                    if (process.env.SAVE_INTERACTION_LESSON == "true") {
+                        let data = await query_psql_lesson(
+                            `INSERT INTO public.user_lesson ("user_id", "lesson_id", "attemps", "points") VALUES ($1, $2, $3, $4)`,
+                            [user_id, parseInt(lessonNumber), parseInt(attempt), parseInt(numberEval)]
+                        );
+                        if (data != null) {
+                            console.log("Guardado en la base de datos");
+                        }
+                    }
+                }
+        } catch (e) {
+            console.log(e);
+        }
+        return
+    }
 
     if (req.body.queryResult.action == "NO_Gracias") {
         res.json({
@@ -154,15 +193,18 @@ app.post('/',  async(req, res) => {
                 "data": contexto.parameters.data,
             }
         }); 
-        // console.log(output);
+        
+        
+        let response;
         switch (contador) {
             case 2:
-                res.json({
+                response = res.json({
                     "outputContexts": output,
                     "followupEventInput": {
                         "name": "TEST_ACTION",
                         "languageCode": "en-US",
                         "parameters": {
+                            "lessonId": data[contador - 1].id, 
                             "info": data[contador - 1].solution
                           }
                       }
@@ -170,50 +212,52 @@ app.post('/',  async(req, res) => {
                 
                 break;
             case 3:
-                res.json({
+                response = res.json({
                     "outputContexts": output,
                     "followupEventInput": {
                         "name": "TEST_ACTION",
                         "languageCode": "en-US",
                         "parameters": {
+                            "lessonId": data[contador - 1].id,
                             "info": data[contador - 1].solution
                           }
                       }
                 }); 
             case 4:
-                res.json({
+                response = res.json({
                     "outputContexts": output,
                     "followupEventInput": {
                         "name": "TEST_ACTION",
                         "languageCode": "en-US",
                         "parameters": {
+                            "lessonId": data[contador - 1].id,
                             "info": data[contador - 1].solution
                           }
                       }
                 }); 
                 break;  
             case 5:
-                res.json({
+                response = res.json({
                     "outputContexts": output,
                     "followupEventInput": {
                         "name": "TEST_ACTION",
                         "languageCode": "en-US",
                         "parameters": {
+                            "lessonId": data[contador - 1].id,
                             "info": data[contador - 1].solution
                           }
                       }
                 }); 
                 break;
             case 6:
-                res.json({
+                response = res.json({
                     "fulfillmentText": "No tenemos más respuestas, muchas gracias."
                    });
                 break;  
-        
-            default:
-                break;
         }
-       
+        
+        return response;
+
     }     
 
 });
@@ -225,10 +269,10 @@ const repos = async(User_Query) => {
         followerList =  await json.map((repo) => {
             return {
             "id": repo.id,
-            "solution": repo.solution
+            "solution": repo.solution.slice(0, 100)
             }
         });
-        return followerList
+        return followerList.slice(0, 5)
 
     } catch (error) {
         console.log(`Error: ${error}`);

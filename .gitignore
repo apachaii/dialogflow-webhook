@@ -1,2 +1,3 @@
 development/node_modules
 production/node_modules
+*.zip

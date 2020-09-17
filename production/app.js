@@ -17,8 +17,10 @@ const fetch = require("node-fetch");
 
 router.use(compression());
 router.use(cors());
-router.use(bodyParser.json());
-router.use(bodyParser.urlencoded({ extended: true }));
+// router.use(bodyParser.json());
+// router.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 router.use(awsServerlessExpressMiddleware.eventContext());
 
 router.post('/dialogflow', async (req, res) => {
@@ -46,17 +48,6 @@ router.post('/dialogflow', async (req, res) => {
                     "data": info,
                 }
             }); 
-            console.log("A responder", {
-                "outputContexts": output,
-                "followupEventInput": {
-                    "name": "TEST_ACTION",
-                    "languageCode": "en-US",
-                    "parameters": {
-                        "info": info[0].solution,
-                        "lessonId": info[0].id
-                    }
-                }
-            });
             res.json({
                 "outputContexts": output,
                 "followupEventInput": {
@@ -171,6 +162,10 @@ router.post('/dialogflow', async (req, res) => {
                         }
                     }
                 }
+            res.json({
+                "fulfillmentText": `Gracias por evaluar con un ${numberEval}\n¿Desea otra respuesta?`
+            });
+            return;
         } catch (e) {
             console.log(e);
         }
@@ -201,6 +196,16 @@ router.post('/dialogflow', async (req, res) => {
             }
         }); 
 
+        let data_to_rec = await query_psql_lesson(
+            "SELECT * FROM public.lesson where id=$1",
+            [data[contador - 1].id]
+        );
+        if (data_to_rec != null) {
+            data_to_rec = data_to_rec[0]
+        } else {
+
+        }
+
         let response;
         switch (contador) {
             case 2:
@@ -211,7 +216,7 @@ router.post('/dialogflow', async (req, res) => {
                         "languageCode": "en-US",
                         "parameters": {
                             "lessonId": data[contador - 1].id, 
-                            "info": data[contador - 1].solution
+                            "info": data_to_rec.solution
                           }
                       }
                 }); 
@@ -225,10 +230,11 @@ router.post('/dialogflow', async (req, res) => {
                         "languageCode": "en-US",
                         "parameters": {
                             "lessonId": data[contador - 1].id, 
-                            "info": data[contador - 1].solution
+                            "info": data_to_rec.solution
                           }
                       }
                 }); 
+                break;
             case 4:
                 response = res.json({
                     "outputContexts": output,
@@ -237,7 +243,7 @@ router.post('/dialogflow', async (req, res) => {
                         "languageCode": "en-US",
                         "parameters": {
                             "lessonId": data[contador - 1].id, 
-                            "info": data[contador - 1].solution
+                            "info": data_to_rec.solution
                           }
                       }
                 }); 
@@ -250,7 +256,7 @@ router.post('/dialogflow', async (req, res) => {
                         "languageCode": "en-US",
                         "parameters": {
                             "lessonId": data[contador - 1].id, 
-                            "info": data[contador - 1].solution
+                            "info": data_to_rec.solution
                           }
                       }
                 }); 
@@ -270,13 +276,20 @@ router.post('/dialogflow', async (req, res) => {
 
 const repos = async(User_Query) => {
     try {
-        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?query=${User_Query}`);
+        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com/lesson_recommend?query=${User_Query}`);
         let json = await response.json();
+        let i = 0;
         let followerList =  await json.map((repo) => {
-            console.log(repo);
-            return {
-            "id": repo.id,
-            "solution": repo.solution.slice(0, 100)
+            if (i == 0) {
+                i = 1;
+                return {
+                    "id": repo.id,
+                    "solution": repo.solution
+                }
+            } else {
+                return {
+                    "id": repo.id,
+                }
             }
         });
         return followerList.slice(0, 5)

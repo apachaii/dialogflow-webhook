@@ -30,7 +30,6 @@ app.post('/',  async(req, res) => {
         
         try {
             let query = req.body.queryResult.queryText
-            contador = 0
             let info = await repos(query)
 
             let output = req.body.queryResult.outputContexts;
@@ -92,7 +91,8 @@ app.post('/',  async(req, res) => {
             "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id",
             [user_id]
         );
-
+        
+        let proyects;
         if (data != null) {
             projects = {}
             data.forEach(pro => {
@@ -237,23 +237,18 @@ app.post('/',  async(req, res) => {
         let contador = contexto.parameters.contadorIntento + 1;
         contexto.parameters.contadorIntento += 1;
         let data = contexto.parameters.data;
+        let original_query = contexto.parameters.original_rec_query;
         
         let output = req.body.queryResult.outputContexts;
         let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
-        // agent.context.set({
-        //     "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
-        //     "lifespanCount": 20,
-        //     "parameters": {
-        //         "contadorIntento": contador,
-        //         "data": data,
-        //     }
-        // });
+
         output.push({
             "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
             "lifespanCount": 20,
             "parameters": {
                 "contadorIntento": contador,
                 "data": contexto.parameters.data,
+                "original_rec_query": original_query
             }
         }); 
         
@@ -267,70 +262,26 @@ app.post('/',  async(req, res) => {
         } else {
 
         }
-
+        
         let response;
-        switch (contador) {
-            case 2:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                
-                break;
-            case 3:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                break;
-            case 4:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                break;  
-            case 5:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                break;
-            case 6:
-                response = res.json({
-                    "fulfillmentText": "No tenemos más respuestas, muchas gracias."
-                   });
-                break;  
+        if (contador < 6) {
+            response = res.json({
+                "outputContexts": output,
+                "followupEventInput": {
+                    "name": "TEST_ACTION",
+                    "languageCode": "en-US",
+                    "parameters": {
+                        "lessonId": data[contador - 1].id, 
+                        "info": data_to_rec.solution
+                    }
+                }
+            });
+        } else {
+            response = res.json({
+                "fulfillmentText": "No tenemos más respuestas, muchas gracias."
+            });
         }
         return response;
-
     }     
 
 });
@@ -353,7 +304,7 @@ const repos = async(User_Query) => {
                 }
             }
         });
-        return followerList.slice(0, 5)
+        return followerList.slice(0, 10)
 
     } catch (error) {
         console.log(`Error: ${error}`);

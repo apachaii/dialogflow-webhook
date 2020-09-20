@@ -30,10 +30,9 @@ router.post('/dialogflow', async (req, res) => {
         response: res
     });
     console.log(req.body);
-    // console.log(req.body.queryResult.fulfillmentMessages);
-    // console.log(req.body.queryResult.outputContexts);
 
     if (req.body.queryResult.action == "full-test") {
+        
         try {
             let query = req.body.queryResult.queryText
             let info = await repos(query)
@@ -46,6 +45,7 @@ router.post('/dialogflow', async (req, res) => {
                 "parameters": {
                     "contadorIntento": 1,
                     "data": info,
+                    "original_rec_query": query
                 }
             }); 
             res.json({
@@ -58,13 +58,12 @@ router.post('/dialogflow', async (req, res) => {
                         "lessonId": info[0].id
                     }
                 }
-            });      
-            return;
+            });   
         } catch (e) {
             console.log(e);
             res.json({"fulfillmentText": "Intente nuevamente"});
             return;
-        }
+        }   
     }
 
     if (req.body.queryResult.intent.displayName == 'Tasks_Productivity') {
@@ -87,8 +86,9 @@ router.post('/dialogflow', async (req, res) => {
             [user_id]
         );
 
+        let projects;
         if (data != null) {
-            let projects = {}
+            projects = {}
             data.forEach(pro => {
                 projects[place] = [pro.project_id, pro.name];
                 texto += `${place}) ${pro.name}\n`;
@@ -110,7 +110,6 @@ router.post('/dialogflow', async (req, res) => {
                 "fulfillmentText": "No hay proyectos"
             });
         }
-        return;
     }
 
     if (req.body.queryResult.action == 'project_number') {
@@ -135,9 +134,8 @@ router.post('/dialogflow', async (req, res) => {
                 "fulfillmentText": "No existe ese proyecto"
             });
         }
-        return;
     }
-
+    
     if (req.body.queryResult.action == "number_eval") {
         let contexto = agent.getContext("numeros-eval");
         let user_id = 'cc7baf7c-839b-41ea-b791-a416a3b0ee92';
@@ -146,16 +144,17 @@ router.post('/dialogflow', async (req, res) => {
             let numberEval = contexto.parameters.numberEval;
             let lessonNumber = rec_context.parameters.lessonId;
             let attempt = rec_context.parameters.contadorIntento;
+            let original_query = rec_context.parameters.original_rec_query;
             user_id = req.body.originalDetectIntentRequest.payload.userId;
-            console.log(numberEval, lessonNumber, attempt, user_id);
+            console.log(numberEval, lessonNumber, attempt, user_id, original_query);
             if ( numberEval != undefined && 
                 lessonNumber != undefined && 
                 attempt != undefined && 
                 user_id != undefined ) {
                     if (process.env.SAVE_INTERACTION_LESSON == "true") {
                         let data = await query_psql_lesson(
-                            `INSERT INTO public.user_lesson ("user_id", "lesson_id", "attemps", "points") VALUES ($1, $2, $3, $4)`,
-                            [user_id, parseInt(lessonNumber), parseInt(attempt), parseInt(numberEval)]
+                            `INSERT INTO public.user_lesson ("user_id", "lesson_id", "attemps", "points", "query") VALUES ($1, $2, $3, $4, $5)`,
+                            [user_id, parseInt(lessonNumber), parseInt(attempt), parseInt(numberEval), original_query]
                         );
                         if (data != null) {
                             console.log("Guardado en la base de datos");
@@ -163,7 +162,42 @@ router.post('/dialogflow', async (req, res) => {
                     }
                 }
             res.json({
-                "fulfillmentText": `Gracias por evaluar con un ${numberEval}\n¿Desea otra respuesta?`
+                "fulfillmentText": `Gracias por evaluar con un ${numberEval}\n¿Desea otra respuesta?`,
+                "fulfillmentMessages": [
+                    {
+                        "text": {
+                            "text": [
+                                `¡Gracias por evaluar con un ${numberEval}!`
+                            ]
+                        }
+                    },
+                    {
+                        "text": {
+                            "text": [
+                                "¿Desea otra respuesta?"
+                            ]
+                        }
+                    },
+                    {
+                        "payload": {
+                            "richContent": [
+                            [
+                                {
+                                    "type": "chips",
+                                    "options": [
+                                        {
+                                            "text": "Sí"
+                                        },
+                                        {
+                                            "text": "No"
+                                        }
+                                    ]
+                                }
+                            ]
+                            ]
+                        }
+                    }
+                ]
             });
             return;
         } catch (e) {
@@ -173,29 +207,43 @@ router.post('/dialogflow', async (req, res) => {
     }
 
     if (req.body.queryResult.action == "NO_Gracias") {
+        let output = req.body.queryResult.outputContexts;
+        let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
+        let data = {
+            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+            "lifespanCount": 0,
+            "parameters": {}
+        }; 
+        const newOutput = output.filter(item => item.name !== data.name)
+        newOutput.push(data);
         res.json({
+            "outputContexts": newOutput,
             "fulfillmentText": "OK, será para la Próxima"
         });
-        return;
+        return
     }
-
+     
     if (req.body.queryResult.action == "SI_Gracias") {
         let contexto = agent.getContext("recommendation-data");
         let contador = contexto.parameters.contadorIntento + 1;
         contexto.parameters.contadorIntento += 1;
         let data = contexto.parameters.data;
+        let original_query = contexto.parameters.original_rec_query;
         
         let output = req.body.queryResult.outputContexts;
         let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
+
         output.push({
             "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
             "lifespanCount": 20,
             "parameters": {
                 "contadorIntento": contador,
                 "data": contexto.parameters.data,
+                "original_rec_query": original_query
             }
         }); 
-
+        
+        
         let data_to_rec = await query_psql_lesson(
             "SELECT * FROM public.lesson where id=$1",
             [data[contador - 1].id]
@@ -205,78 +253,33 @@ router.post('/dialogflow', async (req, res) => {
         } else {
 
         }
-
+        
         let response;
-        switch (contador) {
-            case 2:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                
-                break;
-            case 3:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                break;
-            case 4:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                break;  
-            case 5:
-                response = res.json({
-                    "outputContexts": output,
-                    "followupEventInput": {
-                        "name": "TEST_ACTION",
-                        "languageCode": "en-US",
-                        "parameters": {
-                            "lessonId": data[contador - 1].id, 
-                            "info": data_to_rec.solution
-                          }
-                      }
-                }); 
-                break;
-            case 6:
-                response = res.json({
-                    "fulfillmentText": "No tenemos más respuestas, muchas gracias."
-                   });
-                break;  
+        if (contador < 6) {
+            response = res.json({
+                "outputContexts": output,
+                "followupEventInput": {
+                    "name": "TEST_ACTION",
+                    "languageCode": "en-US",
+                    "parameters": {
+                        "lessonId": data[contador - 1].id, 
+                        "info": data_to_rec.solution
+                    }
+                }
+            });
+        } else {
+            response = res.json({
+                "fulfillmentText": "No tenemos más respuestas, muchas gracias."
+            });
         }
         return response;
-    }
-    
-    console.log("No se procesa");
+    }     
 
 });
 
 const repos = async(User_Query) => {
     try {
-        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com/lesson_recommend?query=${User_Query}`);
+        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?query=${User_Query}`);
         let json = await response.json();
         let i = 0;
         let followerList =  await json.map((repo) => {
@@ -292,7 +295,7 @@ const repos = async(User_Query) => {
                 }
             }
         });
-        return followerList.slice(0, 5)
+        return followerList.slice(0, 10)
 
     } catch (error) {
         console.log(`Error: ${error}`);

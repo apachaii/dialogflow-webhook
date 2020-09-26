@@ -88,12 +88,12 @@ app.post('/',  async(req, res) => {
         }
 
         let data = await query_psql(
-            "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id",
+            "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id AND up.deleted_at IS NULL",
             [user_id]
         );
         
         let proyects;
-        if (data != null) {
+        if (data != null && data.length > 0) {
             projects = {}
             data.forEach(pro => {
                 projects[place] = [pro.project_id, pro.name];

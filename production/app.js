@@ -82,12 +82,12 @@ router.post('/dialogflow', async (req, res) => {
         }
 
         let data = await query_psql(
-            "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id",
+            "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id AND up.deleted_at IS NULL",
             [user_id]
         );
 
         let projects;
-        if (data != null) {
+        if (data != null && data.length > 0) {
             projects = {}
             data.forEach(pro => {
                 projects[place] = [pro.project_id, pro.name];
@@ -279,7 +279,7 @@ router.post('/dialogflow', async (req, res) => {
 
 const repos = async(User_Query) => {
     try {
-        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?query=${User_Query}`);
+        let response = await fetch(`${process.env.RECOMMEND_URL}?query=${User_Query}`);
         let json = await response.json();
         let i = 0;
         let followerList =  await json.map((repo) => {

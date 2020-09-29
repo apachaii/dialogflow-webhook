@@ -279,7 +279,7 @@ router.post('/dialogflow', async (req, res) => {
 
 const repos = async(User_Query) => {
     try {
-        let response = await fetch(`${process.env.RECOMMEND_URL}?query=${User_Query}`);
+        let response = await fetch(`${process.env.RECOMMEND_URL}?${process.env.QUERY_PARAM}=${User_Query}`);
         let json = await response.json();
         let i = 0;
         let followerList =  await json.map((repo) => {

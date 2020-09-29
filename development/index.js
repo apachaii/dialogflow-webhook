@@ -288,7 +288,7 @@ app.post('/',  async(req, res) => {
 
 const repos = async(User_Query) => {
     try {
-        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?query=${User_Query}`);
+        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?${process.env.QUERY_PARAM}=${User_Query}`);
         let json = await response.json();
         let i = 0;
         let followerList =  await json.map((repo) => {

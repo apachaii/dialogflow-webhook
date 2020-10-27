@@ -1,0 +1,5 @@
+development/node_modules
+production/node_modules
+*.zip
+development/.env
+production/.env

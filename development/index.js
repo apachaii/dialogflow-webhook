@@ -60,6 +60,7 @@ app.post('/',  async(req, res) => {
                     "name": "TEST_ACTION",
                     "languageCode": "en-US",
                     "parameters": {
+                        "owner": info[0].owner, 
                         "info": info[0].solution,
                         "lessonId": info[0].id
                     }
@@ -169,13 +170,14 @@ app.post('/',  async(req, res) => {
                         }
                     }
                 }
+            let texto = (parseInt(numberEval) < 3) ? "Que lástima, seguiré buscando": `¡Gracias por evaluar con un ${numberEval}!`;
             res.json({
                 "fulfillmentText": `Gracias por evaluar con un ${numberEval}\n¿Desea otra respuesta?`,
                 "fulfillmentMessages": [
                     {
                         "text": {
                             "text": [
-                                `¡Gracias por evaluar con un ${numberEval}!`
+                                texto
                             ]
                         }
                     },
@@ -272,7 +274,8 @@ app.post('/',  async(req, res) => {
                     "languageCode": "en-US",
                     "parameters": {
                         "lessonId": data[contador - 1].id, 
-                        "info": data_to_rec.solution
+                        "info": data_to_rec.solution,
+                        "owner": data_to_rec.user_publisher_email, 
                     }
                 }
             });
@@ -297,7 +300,8 @@ const repos = async(User_Query) => {
                 i = 1;
                 return {
                     "id": repo.id,
-                    "solution": repo.solution
+                    "solution": repo.solution,
+                    "owner": repo.user_publisher_email
                 }
             } else {
                 return {

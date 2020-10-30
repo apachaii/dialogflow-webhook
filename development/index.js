@@ -234,58 +234,141 @@ app.post('/',  async(req, res) => {
     }
      
     if (req.body.queryResult.action == "SI_Gracias") {
-        let contexto = agent.getContext("recommendation-data");
-        // console.log(contexto);
-        let contador = contexto.parameters.contadorIntento + 1;
-        contexto.parameters.contadorIntento += 1;
-        let data = contexto.parameters.data;
-        let original_query = contexto.parameters.original_rec_query;
+        try {
+            user_id = req.body.originalDetectIntentRequest.payload.userId;
+        } catch (e) {
+            res.json({
+                "fulfillmentText": "No hay usuario"
+            });
+            return;
+        }
         
+        let contexto = agent.getContext("recommendation-data");
+
         let output = req.body.queryResult.outputContexts;
         let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
-
-        output.push({
+        let data = {
             "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
-            "lifespanCount": 20,
-            "parameters": {
-                "contadorIntento": contador,
-                "data": contexto.parameters.data,
-                "original_rec_query": original_query
-            }
-        }); 
-        
-        
-        let data_to_rec = await query_psql_lesson(
-            "SELECT * FROM public.lesson where id=$1",
-            [data[contador - 1].id]
-        );
-        if (data_to_rec != null) {
-            data_to_rec = data_to_rec[0]
-        } else {
+            "lifespanCount": 0,
+            "parameters": {}
+        }; 
+        const newOutput = output.filter(item => item.name !== data.name)
+        newOutput.push(data);
 
+        try {
+            let _proyects = await query_psql(
+                "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id AND up.deleted_at IS NULL",
+                [user_id]
+            );
+
+            let proyecto;
+            if (_proyects != null && _proyects.length > 0) {
+                projects = {}
+                for (i = 0; i < _proyects.length; i++) {
+                    pro = _proyects[i];
+                    if (pro.name != "Example") {
+                        proyecto = pro.project_id;
+                        break;
+                    }
+                };
+                let original_query = contexto.parameters.original_rec_query;
+                let host = "localhost:8000"; // "https://zmartboard.cl"
+                return res.json({
+                    "outputContexts": newOutput,
+                    "fulfillmentMessages": [
+                        {
+                            "text": {
+                                "text": [
+                                    "Las recomendaciones se encuentran en el siguiente link."
+                                ]
+                            }
+                        },
+                        {
+                            "text": {
+                                "text": [
+                                    `${host}/project/${proyecto}/lessons?query=${original_query}`
+                                ]
+                            }
+                        },
+                        {
+                            "payload": {
+                                "richContent": [
+                                [
+                                    {
+                                        "type": "chips",
+                                        "options": [
+                                            {
+                                                "text": "Siguientes recomendaciones",
+                                                "link": `${host}/project/${proyecto}/lessons?query=${original_query}`
+                                            }
+                                        ]
+                                    }
+                                ]
+                                ]
+                            }
+                        }
+                    ]
+                });
+            }
+        } catch {
+            return res.json({
+                "outputContexts": newOutput,
+                "fulfillmentText": "Lamentablemente no tienes proyectos y no te puedo redirigir a más lecciones :("
+            });
         }
         
-        let response;
-        if (contador < 6) {
-            response = res.json({
-                "outputContexts": output,
-                "followupEventInput": {
-                    "name": "TEST_ACTION",
-                    "languageCode": "en-US",
-                    "parameters": {
-                        "lessonId": data[contador - 1].id, 
-                        "info": data_to_rec.solution,
-                        "owner": data_to_rec.user_publisher_email, 
-                    }
-                }
-            });
-        } else {
-            response = res.json({
-                "fulfillmentText": "No tenemos más respuestas, muchas gracias."
-            });
-        }
-        return response;
-    }     
+
+        // let contexto = agent.getContext("recommendation-data");
+        // let contador = contexto.parameters.contadorIntento + 1;
+        // contexto.parameters.contadorIntento += 1;
+        // let data = contexto.parameters.data;
+        // let original_query = contexto.parameters.original_rec_query;
+        
+        // let output = req.body.queryResult.outputContexts;
+        // let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
+
+        // output.push({
+        //     "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+        //     "lifespanCount": 20,
+        //     "parameters": {
+        //         "contadorIntento": contador,
+        //         "data": contexto.parameters.data,
+        //         "original_rec_query": original_query
+        //     }
+        // }); 
+        
+        
+        // let data_to_rec = await query_psql_lesson(
+        //     "SELECT * FROM public.lesson where id=$1",
+        //     [data[contador - 1].id]
+        // );
+        // if (data_to_rec != null) {
+        //     data_to_rec = data_to_rec[0]
+        // } else {
+
+        // }
+        
+        // let response;
+        // if (contador < 6) {
+        //     response = res.json({
+        //         "outputContexts": output,
+        //         "followupEventInput": {
+        //             "name": "TEST_ACTION",
+        //             "languageCode": "en-US",
+        //             "parameters": {
+        //                 "lessonId": data[contador - 1].id, 
+        //                 "info": data_to_rec.solution,
+        //                 "owner": data_to_rec.user_publisher_email, 
+        //             }
+        //         }
+        //     });
+        // } else {
+        //     response = res.json({
+        //         "fulfillmentText": "No tenemos más respuestas, muchas gracias."
+        //     });
+        // }
+        // return response;
+    }
 
 });
 

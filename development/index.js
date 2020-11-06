@@ -418,7 +418,7 @@ app.post('/',  async(req, res) => {
                     "languageCode": "en-US",
                     "parameters": {
                         "name": data_to_rec.name,
-                        "owner": data_to_rec.user_publisher_email || "", 
+                        "owner": data_to_rec.user_publisher_email || "Anónimo", 
                         "info": information,
                         "lessonId": data[contador - 1].id, 
                     }
@@ -446,7 +446,7 @@ const repos = async(User_Query) => {
                 return {
                     "id": repo.id,
                     "solution": repo.solution,
-                    "owner": repo.user_publisher_email || "",
+                    "owner": repo.user_publisher_email || "Anónimo",
                     "name": repo.name
                 }
             } else {

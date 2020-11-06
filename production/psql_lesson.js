@@ -18,7 +18,7 @@ const db = pgp(cn); // database instance;
 module.exports.query_psql_lesson = async function(query, vars) {
     return db.query(query, vars)
     .then(data => {
-        console.log(data); // print user name;
+        // console.log(data); // print user name;
         return data;
     })
     .catch(error => {

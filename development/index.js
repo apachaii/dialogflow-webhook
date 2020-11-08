@@ -44,19 +44,13 @@ app.post('/',  async(req, res) => {
                     "original_rec_query": query
                 }
             }); 
-            // console.log("A responder", {
-            //     "outputContexts": output,
-            //     "followupEventInput": {
-            //         "name": "TEST_ACTION",
-            //         "languageCode": "en-US",
-            //         "parameters": {
-            //             "info": info[0].solution,
-            //             "lessonId": info[0].id
-            //         }
-            //     }
-            // });
+            output.push({
+                "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/prueba_numero`,
+                "lifespanCount": 1
+            }); 
 
             let information = info[0].solution;
+            let is_url = false;
             // console.log("Largo de la infromación", information.length)
             if (information.length > 300) {
                 try {
@@ -77,27 +71,109 @@ app.post('/',  async(req, res) => {
                         };
                         let original_query = query;
                         let host = "localhost:8000"; // "https://zmartboard.cl"
-                        information = "El contenido de la lección se encuentran en el siguiente link:\n"
-                        information += `${host}/project/${proyecto}/lessons/${info[0].id}?q=${original_query}`
+                        // information = "El contenido de la lección se encuentran en el siguiente link:\n"
+                        information = `${host}/project/${proyecto}/lessons/${info[0].id}?q=${original_query}`
+                        is_url = true;
                     }
                 } catch (e){
                     console.log(e)
                 }
             }
+            let answers = [{
+                "text": {
+                    "text": [
+                        "Lección proporcionada por: ", info[0].owner
+                    ]
+                }
+            },
+            {
+                "text": {
+                    "text": [
+                        info[0].name
+                    ]
+                }
+            }];
 
+            if (is_url) {
+                answers.push({
+                    "payload": {
+                        "richContent":[
+
+                            [{
+                                "options": [
+                                    {
+                                        "text": "Ver lección",
+                                        "link": information
+                                    }
+                                ],
+                                "type": "chips"
+                            }]
+                        ]
+                    }
+                })
+            } else {
+                answers.push({
+                    "text": {
+                        "text": [
+                            information
+                        ]
+                    }
+                })
+            }
+
+            answers = answers.concat([
+            {
+                "text": {
+                    "text": [
+                        "¿Le pareció útil esta información?"
+                    ]
+                }
+            },
+            {
+                "payload": {
+                    "richContent":[
+                        [{
+                            "options": [
+                                {
+                                    "text": "1"
+                                },
+                                {
+                                    "text": "2"
+                                },
+                                {
+                                    "text": "3"
+                                },
+                                {
+                                    "text": "4"
+                                },
+                                {
+                                    "text": "5"
+                                }
+                            ],
+                            "type": "chips"
+                        }]
+                    ]
+                }
+            }]);
+            //console.log(JSON.stringify(answers));
             res.json({
                 "outputContexts": output,
-                "followupEventInput": {
-                    "name": "TEST_ACTION",
-                    "languageCode": "en-US",
-                    "parameters": {
-                        "owner": info[0].owner,
-                        "name": info[0].name, 
-                        "info": information,
-                        "lessonId": info[0].id
-                    }
-                }
-            });   
+                "fulfillmentMessages": answers
+            });
+
+            // res.json({
+            //     "outputContexts": output,
+            //     "followupEventInput": {
+            //         "name": "TEST_ACTION",
+            //         "languageCode": "en-US",
+            //         "parameters": {
+            //             "owner": info[0].owner,
+            //             "name": info[0].name, 
+            //             "info": information,
+            //             "lessonId": info[0].id
+            //         }
+            //     }
+            // });   
         } catch (e) {
             console.log(e);
             res.json({"fulfillmentText": "Intente nuevamente"});
@@ -367,7 +443,11 @@ app.post('/',  async(req, res) => {
                 "data": contexto.parameters.data,
                 "original_rec_query": original_query
             }
-        }); 
+        });
+        output.push({
+            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/prueba_numero`,
+            "lifespanCount": 1
+        });
         
         
         let data_to_rec = await query_psql_lesson(
@@ -381,6 +461,7 @@ app.post('/',  async(req, res) => {
         }
 
         let information = data_to_rec.solution;
+        let is_url = false;
         console.log("Largo de la infromación", information.length)
         if (information.length > 300) {
             try {
@@ -401,8 +482,9 @@ app.post('/',  async(req, res) => {
                     };
                     let original_query = contexto.parameters.original_rec_query;
                     let host = "localhost:8000"; // "https://zmartboard.cl"
-                    information = "El contenido de la lección se encuentran en el siguiente link:\n"
-                    information += `${host}/project/${proyecto}/lessons/${data_to_rec.id}?q=${original_query}`
+                    // information = "El contenido de la lección se encuentran en el siguiente link:\n"
+                    information = `${host}/project/${proyecto}/lessons/${data_to_rec.id}?q=${original_query}`
+                    is_url = true;
                 }
             } catch (e){
                 console.log(e)
@@ -411,19 +493,100 @@ app.post('/',  async(req, res) => {
 
         let response;
         if (contador < 6) {
-            response = res.json({
-                "outputContexts": output,
-                "followupEventInput": {
-                    "name": "TEST_ACTION",
-                    "languageCode": "en-US",
-                    "parameters": {
-                        "name": data_to_rec.name,
-                        "owner": data_to_rec.user_publisher_email || "Anónimo", 
-                        "info": information,
-                        "lessonId": data[contador - 1].id, 
-                    }
+            let _own = data_to_rec.user_publisher_email || "Anónimo"
+            let answers = [{
+                "text": {
+                    "text": [
+                        "Lección proporcionada por: ", _own
+                    ]
                 }
+            },
+            {
+                "text": {
+                    "text": [
+                        data_to_rec.name
+                    ]
+                }
+            }];
+
+            if (is_url) {
+                answers.push({
+                    "payload": {
+                        "richContent":[
+
+                            [{
+                                "options": [
+                                    {
+                                        "text": "Ver lección",
+                                        "link": information
+                                    }
+                                ],
+                                "type": "chips"
+                            }]
+                        ]
+                    }
+                })
+            } else {
+                answers.push({
+                    "text": {
+                        "text": [
+                            information
+                        ]
+                    }
+                })
+            }
+
+            answers = answers.concat([
+            {
+                "text": {
+                    "text": [
+                        "¿Le pareció útil esta información?"
+                    ]
+                }
+            },
+            {
+                "payload": {
+                    "richContent":[
+                        [{
+                            "options": [
+                                {
+                                    "text": "1"
+                                },
+                                {
+                                    "text": "2"
+                                },
+                                {
+                                    "text": "3"
+                                },
+                                {
+                                    "text": "4"
+                                },
+                                {
+                                    "text": "5"
+                                }
+                            ],
+                            "type": "chips"
+                        }]
+                    ]
+                }
+            }]);
+            res.json({
+                "outputContexts": output,
+                "fulfillmentMessages": answers
             });
+            // response = res.json({
+            //     "outputContexts": output,
+            //     "followupEventInput": {
+            //         "name": "TEST_ACTION",
+            //         "languageCode": "en-US",
+            //         "parameters": {
+            //             "name": data_to_rec.name,
+            //             "owner": data_to_rec.user_publisher_email || "Anónimo", 
+            //             "info": information,
+            //             "lessonId": data[contador - 1].id, 
+            //         }
+            //     }
+            // });
         } else {
             response = res.json({
                 "fulfillmentText": "No tenemos más respuestas, muchas gracias."

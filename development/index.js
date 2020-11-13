@@ -82,7 +82,7 @@ app.post('/',  async(req, res) => {
             let answers = [{
                 "text": {
                     "text": [
-                        "Lección proporcionada por: ", info[0].owner
+                        `Lección proporcionada por: ${info[0].owner}`
                     ]
                 }
             },
@@ -493,11 +493,11 @@ app.post('/',  async(req, res) => {
 
         let response;
         if (contador < 6) {
-            let _own = data_to_rec.user_publisher_email || "Anónimo"
+            let _own = (data_to_rec.user_publisher_email == "None") ? "Anónimo" : data_to_rec.user_publisher_email;
             let answers = [{
                 "text": {
                     "text": [
-                        "Lección proporcionada por: ", _own
+                        `Lección proporcionada por: ${_own}`
                     ]
                 }
             },
@@ -599,7 +599,9 @@ app.post('/',  async(req, res) => {
 
 const repos = async(User_Query) => {
     try {
-        let response = await fetch(`https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend?${process.env.QUERY_PARAM}=${User_Query}`);
+        // let url = "https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend"
+        let url = "http://sysrec.ing.puc.cl:5000/recommend"
+        let response = await fetch(`${url}?${process.env.QUERY_PARAM}=${User_Query}`);
         let json = await response.json();
         let i = 0;
         // let followerList =  await json.map((repo) => {
@@ -609,7 +611,7 @@ const repos = async(User_Query) => {
                 return {
                     "id": repo.id,
                     "solution": repo.solution,
-                    "owner": repo.user_publisher_email || "Anónimo",
+                    "owner": (repo.user_publisher_email == "None") ? "Anónimo": repo.user_publisher_email,
                     "name": repo.name
                 }
             } else {

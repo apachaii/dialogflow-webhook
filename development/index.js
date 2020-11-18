@@ -600,7 +600,7 @@ app.post('/',  async(req, res) => {
 const repos = async(User_Query) => {
     try {
         // let url = "https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend"
-        let url = "http://sysrec.ing.puc.cl:5000/recommend"
+        let url = "https://lessons.zmartboard.cl/recommend"
         let response = await fetch(`${url}?${process.env.QUERY_PARAM}=${User_Query}`);
         let json = await response.json();
         let i = 0;

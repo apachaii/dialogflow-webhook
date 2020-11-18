@@ -115,7 +115,7 @@ app.post('/',  async(req, res) => {
                 answers.push({
                     "text": {
                         "text": [
-                            information
+                            information.replace(/<[^>]*>?/gm, '')
                         ]
                     }
                 })
@@ -361,6 +361,7 @@ app.post('/',  async(req, res) => {
     }
      
     if (req.body.queryResult.action == "SI_Gracias") {
+        let user_id;
         try {
             user_id = req.body.originalDetectIntentRequest.payload.userId;
         } catch (e) {
@@ -512,7 +513,7 @@ app.post('/',  async(req, res) => {
 
         let response;
         if (contador < 6) {
-            let _own = (data_to_rec.user_publisher_email == "None") ? "Anónimo" : data_to_rec.user_publisher_email;
+            let _own = (data_to_rec.user_publisher_email == "None" || data_to_rec.user_publisher_email == null) ? "Anónimo" : data_to_rec.user_publisher_email;
             let answers = [{
                 "text": {
                     "text": [
@@ -549,7 +550,7 @@ app.post('/',  async(req, res) => {
                 answers.push({
                     "text": {
                         "text": [
-                            information
+                            information.replace(/<[^>]*>?/gm, '')
                         ]
                     }
                 })
@@ -619,7 +620,7 @@ app.post('/',  async(req, res) => {
 const repos = async(User_Query) => {
     try {
         // let url = "https://zblessons-production.us-east-2.elasticbeanstalk.com//lesson_recommend"
-        let url = "https://lessons.zmartboard.cl/recommend"
+        let url = process.env.RECOMMEND_URL;
         let response = await fetch(`${url}?${process.env.QUERY_PARAM}=${User_Query}`);
         let json = await response.json();
         let i = 0;
@@ -628,13 +629,14 @@ const repos = async(User_Query) => {
         if (json.hasOwnProperty("lessons")) {
             data = json.lessons;
         }
-        let followerList = await data.sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1).map((repo) => {    
+        // .sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1)
+        let followerList = await data.map((repo) => {    
             if (i == 0) {
                 i = 1;
                 return {
                     "id": repo.id,
                     "solution": repo.solution,
-                    "owner": (repo.user_publisher_email == "None") ? "Anónimo": repo.user_publisher_email,
+                    "owner": (repo.user_publisher_email == "None" || repo.user_publisher_email == null) ? "Anónimo": repo.user_publisher_email,
                     "name": repo.name
                 }
             } else {

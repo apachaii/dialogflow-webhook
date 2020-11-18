@@ -54,7 +54,7 @@ router.post('/dialogflow', async (req, res) => {
 
             let information = info[0].solution;
             let is_url = false;
-            if (information.length > 300) {
+            if (information.length > 400) {
                 try {
                     let _proyects = await query_psql(
                         "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id AND up.deleted_at IS NULL",
@@ -63,9 +63,8 @@ router.post('/dialogflow', async (req, res) => {
 
                     let proyecto;
                     if (_proyects != null && _proyects.length > 0) {
-                        projects = {}
-                        for (i = 0; i < _proyects.length; i++) {
-                            pro = _proyects[i];
+                        for (let i = 0; i < _proyects.length; i++) {
+                            let pro = _proyects[i];
                             if (pro.name != "Example") {
                                 proyecto = pro.project_id;
                                 break;
@@ -116,7 +115,7 @@ router.post('/dialogflow', async (req, res) => {
                 answers.push({
                     "text": {
                         "text": [
-                            information
+                            information.replace(/<[^>]*>?/gm, '')
                         ]
                     }
                 })
@@ -188,7 +187,7 @@ router.post('/dialogflow', async (req, res) => {
             [user_id]
         );
         
-        let proyects;
+        let projects;
         if (data != null && data.length > 0) {
             projects = {}
             data.forEach(pro => {
@@ -342,6 +341,7 @@ router.post('/dialogflow', async (req, res) => {
     }
      
     if (req.body.queryResult.action == "SI_Gracias") {
+        let user_id;
         try {
             user_id = req.body.originalDetectIntentRequest.payload.userId;
         } catch (e) {
@@ -387,7 +387,7 @@ router.post('/dialogflow', async (req, res) => {
 
         let information = data_to_rec.solution;
         let is_url = false;
-        if (information.length > 300) {
+        if (information.length > 400) {
             try {
                 let _proyects = await query_psql(
                     "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id AND up.deleted_at IS NULL",
@@ -396,9 +396,8 @@ router.post('/dialogflow', async (req, res) => {
 
                 let proyecto;
                 if (_proyects != null && _proyects.length > 0) {
-                    projects = {}
-                    for (i = 0; i < _proyects.length; i++) {
-                        pro = _proyects[i];
+                    for (let i = 0; i < _proyects.length; i++) {
+                        let pro = _proyects[i];
                         if (pro.name != "Example") {
                             proyecto = pro.project_id;
                             break;
@@ -416,7 +415,7 @@ router.post('/dialogflow', async (req, res) => {
 
         let response;
         if (contador < 6) {
-            let _own = (data_to_rec.user_publisher_email == "None") ? "Anónimo" : data_to_rec.user_publisher_email;
+            let _own = (data_to_rec.user_publisher_email == "None" || data_to_rec.user_publisher_email == null) ? "Anónimo" : data_to_rec.user_publisher_email;
             let answers = [{
                 "text": {
                     "text": [
@@ -453,7 +452,7 @@ router.post('/dialogflow', async (req, res) => {
                 answers.push({
                     "text": {
                         "text": [
-                            information
+                            information.replace(/<[^>]*>?/gm, '')
                         ]
                     }
                 })
@@ -517,13 +516,13 @@ const repos = async(User_Query) => {
         if (json.hasOwnProperty("lessons")) {
             data = json.lessons;
         }
-        let followerList = await data.sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1).map((repo) => {    
+        let followerList = await data.map((repo) => {
             if (i == 0) {
                 i = 1;
                 return {
                     "id": repo.id,
                     "solution": repo.solution,
-                    "owner": (repo.user_publisher_email == "None") ? "Anónimo": repo.user_publisher_email,
+                    "owner": (repo.user_publisher_email == "None" || repo.user_publisher_email == null) ? "Anónimo": repo.user_publisher_email,
                     "name": repo.name
                 }
             } else {

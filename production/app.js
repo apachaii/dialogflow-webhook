@@ -509,7 +509,7 @@ router.post('/dialogflow', async (req, res) => {
 
 const repos = async(User_Query) => {
     try {
-        let url = "https://lessons.zmartboard.cl/recommend"
+        let url = process.env.RECOMMEND_URL;
         let response = await fetch(`${url}?${process.env.QUERY_PARAM}=${User_Query}`);
         let json = await response.json();
         let i = 0;

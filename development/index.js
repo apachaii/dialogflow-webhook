@@ -605,7 +605,7 @@ const repos = async(User_Query) => {
         let json = await response.json();
         let i = 0;
         // let followerList =  await json.map((repo) => {
-        let followerList = await json.sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1).map((repo) => {    
+        let followerList = await json.lessons.sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1).map((repo) => {    
             if (i == 0) {
                 i = 1;
                 return {

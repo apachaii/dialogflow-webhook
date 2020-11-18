@@ -269,12 +269,31 @@ app.post('/',  async(req, res) => {
                 attempt != undefined && 
                 user_id != undefined ) {
                     if (process.env.SAVE_INTERACTION_LESSON == "true") {
-                        let data = await query_psql_lesson(
-                            `INSERT INTO public.user_lesson ("user_id", "lesson_id", "attemps", "points", "query") VALUES ($1, $2, $3, $4, $5)`,
-                            [user_id, parseInt(lessonNumber), parseInt(attempt), parseInt(numberEval), original_query]
-                        );
-                        if (data != null) {
-                            console.log("Guardado en la base de datos");
+                        try {
+                            let data = await fetch(`https://lessons.zmartboard.cl/lesson_user_rating`, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Access-Control-Allow-Origin": "*"
+                                },
+                                body: JSON.stringify({
+                                    userId: user_id,
+                                    lessonId: lessonNumber,
+                                    attemps: attempt,
+                                    points: numberEval,
+                                    querytext: original_query
+                                })
+                            });
+                            // let data = await query_psql_lesson(
+                            //     `INSERT INTO public.user_lesson ("user_id", "lesson_id", "attemps", "points", "query") VALUES ($1, $2, $3, $4, $5)`,
+                            //     [user_id, parseInt(lessonNumber), parseInt(attempt), parseInt(numberEval), original_query]
+                            // );
+                            if (data != null) {
+                                console.log("Guardado en la base de datos");
+                            }
+                        } catch (e) {
+                            console.log(e);
+                            console.log("Hubo un error al guardar la interacción");
                         }
                     }
                 }
@@ -605,7 +624,11 @@ const repos = async(User_Query) => {
         let json = await response.json();
         let i = 0;
         // let followerList =  await json.map((repo) => {
-        let followerList = await json.lessons.sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1).map((repo) => {    
+        let data = json;
+        if (json.hasOwnProperty("lessons")) {
+            data = json.lessons;
+        }
+        let followerList = await data.sort((a, b) => (2 * parseInt(a.votes) + parseInt(a.views)) < (2 * parseInt(b.votes) + parseInt(b.views)) ? 1 : -1).map((repo) => {    
             if (i == 0) {
                 i = 1;
                 return {

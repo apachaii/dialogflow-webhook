@@ -526,7 +526,7 @@ router.post('/dialogflow', async (req, res) => {
                         {
                             "text": {
                                 "text": [
-                                    "Puedes ver un pull de lecciones el el siguiente link"
+                                    "Puedes ver un pool de lecciones en el siguiente link"
                                 ]
                             }
                         },

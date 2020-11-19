@@ -14,6 +14,7 @@ const { query_psql } = require("./psql");
 const { query_psql_lesson } = require("./psql_lesson");
 require('dotenv').config();
 const fetch = require("node-fetch");
+const { info } = require('actions-on-google/dist/common');
 
 router.use(compression());
 router.use(cors());
@@ -29,7 +30,8 @@ router.post('/dialogflow', async (req, res) => {
         request: req,
         response: res
     });
-
+    
+    let response;
     if (req.body.queryResult.action == "full-test") {
         
         try {
@@ -44,7 +46,8 @@ router.post('/dialogflow', async (req, res) => {
                 "parameters": {
                     "contadorIntento": 1,
                     "data": info,
-                    "original_rec_query": query
+                    "original_rec_query": query,
+                    "lessonId": info[0].id
                 }
             }); 
             output.push({
@@ -76,7 +79,9 @@ router.post('/dialogflow', async (req, res) => {
                         is_url = true;
                     }
                 } catch (e){
-                    console.log(e)
+                    console.log(e);
+                    is_url = False;
+                    information = info[0].solution
                 }
             }
             let answers = [{
@@ -155,20 +160,18 @@ router.post('/dialogflow', async (req, res) => {
                     ]
                 }
             }]);
-            res.json({
+            response = res.json({
                 "outputContexts": output,
                 "fulfillmentMessages": answers
             });
 
         } catch (e) {
             console.log(e);
-            res.json({"fulfillmentText": "Intente nuevamente"});
-            return;
+            response = res.json({"fulfillmentText": "Intente nuevamente"});
         }   
     }
 
     if (req.body.queryResult.intent.displayName == 'Tasks_Productivity') {
-
         let texto = "";
         let place = 1;
 
@@ -176,10 +179,10 @@ router.post('/dialogflow', async (req, res) => {
         try {
             user_id = req.body.originalDetectIntentRequest.payload.userId;
         } catch (e) {
-            res.json({
+            response = res.json({
                 "fulfillmentText": "No hay usuario"
             });
-            return;
+            return response;
         }
 
         let data = await query_psql(
@@ -195,7 +198,7 @@ router.post('/dialogflow', async (req, res) => {
                 texto += `${place}) ${pro.name}\n`;
                 place += 1;
             });
-            res.json({
+            response = res.json({
                 "followupEventInput": {
                     "name": "SELECT_PROJECT",
                     "languageCode": "es-ES",
@@ -207,7 +210,7 @@ router.post('/dialogflow', async (req, res) => {
                 }
             });
         } else {
-            res.json({
+            response = res.json({
                 "fulfillmentText": "No hay proyectos"
             });
         }
@@ -221,18 +224,17 @@ router.post('/dialogflow', async (req, res) => {
             let info = await tasks_productivity(data[0]);
             let resp = "No hay tareas asignadas para usted."
             info["fullfilmentText"]["blocks"].forEach(block => {
-                console.log(block);
                 if (block["text"]["text"].includes(username)) {
                     resp = block["text"]["text"];
                     return;
                 }
             });
-            res.json({
+            response = res.json({
                 "fulfillmentText": resp
             });
         } catch (e) {
             console.log(e);
-            res.json({
+            response = res.json({
                 "fulfillmentText": "No existe ese proyecto"
             });
         }
@@ -278,7 +280,7 @@ router.post('/dialogflow', async (req, res) => {
                     }
                 }
             let texto = (parseInt(numberEval) < 3) ? "Que lástima, seguiré buscando": `¡Gracias por evaluar con un ${numberEval}!`;
-            res.json({
+            response = res.json({
                 "fulfillmentText": `Gracias por evaluar con un ${numberEval}\n¿Desea otra respuesta?`,
                 "fulfillmentMessages": [
                     {
@@ -316,11 +318,9 @@ router.post('/dialogflow', async (req, res) => {
                     }
                 ]
             });
-            return;
         } catch (e) {
             console.log(e);
         }
-        return
     }
 
     if (req.body.queryResult.action == "NO_Gracias") {
@@ -333,11 +333,10 @@ router.post('/dialogflow', async (req, res) => {
         }; 
         const newOutput = output.filter(item => item.name !== data.name)
         newOutput.push(data);
-        res.json({
+        response = res.json({
             "outputContexts": newOutput,
             "fulfillmentText": "OK, será para la Próxima"
         });
-        return
     }
      
     if (req.body.queryResult.action == "SI_Gracias") {
@@ -345,10 +344,10 @@ router.post('/dialogflow', async (req, res) => {
         try {
             user_id = req.body.originalDetectIntentRequest.payload.userId;
         } catch (e) {
-            res.json({
+            response = res.json({
                 "fulfillmentText": "No hay usuario"
             });
-            return;
+            return response;
         }
         
         let contexto = agent.getContext("recommendation-data");
@@ -366,7 +365,8 @@ router.post('/dialogflow', async (req, res) => {
             "parameters": {
                 "contadorIntento": contador,
                 "data": contexto.parameters.data,
-                "original_rec_query": original_query
+                "original_rec_query": original_query,
+                "lessonId": contexto.parameters.data[contador - 1].id
             }
         });
         output.push({
@@ -414,7 +414,7 @@ router.post('/dialogflow', async (req, res) => {
         }
 
         let response;
-        if (contador < 6) {
+        if (contador < 4) {
             let _own = (data_to_rec.user_publisher_email == "None" || data_to_rec.user_publisher_email == null) ? "Anónimo" : data_to_rec.user_publisher_email;
             let answers = [{
                 "text": {
@@ -492,14 +492,65 @@ router.post('/dialogflow', async (req, res) => {
                     ]
                 }
             }]);
-            res.json({
+            response = res.json({
                 "outputContexts": output,
                 "fulfillmentMessages": answers
             });
         } else {
-            response = res.json({
-                "fulfillmentText": "No tenemos más respuestas, muchas gracias."
-            });
+            let information;
+            try {
+                let _proyects = await query_psql(
+                    "select up.user_id, up.project_id, u.id, u.name as username, p.name from public.user_joins_projects as up, public.users as u, public.projects as p where u.id = $1 and u.id = up.user_id and up.project_id = p.id AND up.deleted_at IS NULL",
+                    [user_id]
+                );
+
+                let proyecto;
+                if (_proyects != null && _proyects.length > 0) {
+                    for (let i = 0; i < _proyects.length; i++) {
+                        let pro = _proyects[i];
+                        if (pro.name != "Example") {
+                            proyecto = pro.project_id;
+                            break;
+                        }
+                    };
+                    let original_query = contexto.parameters.original_rec_query;
+                    let host = "https://zmartboard.cl"
+                    information = `${host}/project/${proyecto}/lessons?q=${original_query}`
+                }
+            } catch (e){
+                console.log(e)
+            }
+            if (information != null) {
+                response = res.json({
+                    "fulfillmentMessages": [
+                        {
+                            "text": {
+                                "text": [
+                                    "Puedes ver un pull de lecciones el el siguiente link"
+                                ]
+                            }
+                        },
+                        {
+                            "payload": {
+                                "richContent":[
+                                    [{
+                                        "options": [
+                                            {
+                                                "text": "Ver más lecciones",
+                                                "link": information
+                                            }
+                                        ],
+                                        "type": "chips"
+                                    }]
+                                ]
+                            }
+                        }]
+                })
+            } else {
+                response = res.json({
+                    "fulfillmentText": "No tenemos más respuestas, muchas gracias."
+                });
+            }
         }
         return response;
     }

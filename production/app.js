@@ -41,7 +41,7 @@ router.post('/dialogflow', async (req, res) => {
             let output = req.body.queryResult.outputContexts;
             let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
             output.push({
-                "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+                "name": `projects/zmartboard-wnxq/agent/sessions/${session}/contexts/recommendation-data`,
                 "lifespanCount": 20,
                 "parameters": {
                     "contadorIntento": 1,
@@ -51,7 +51,7 @@ router.post('/dialogflow', async (req, res) => {
                 }
             }); 
             output.push({
-                "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/prueba_numero`,
+                "name": `projects/zmartboard-wnxq/agent/sessions/${session}/contexts/prueba_numero`,
                 "lifespanCount": 1
             }); 
 
@@ -256,7 +256,7 @@ router.post('/dialogflow', async (req, res) => {
                 user_id != undefined ) {
                     if (process.env.SAVE_INTERACTION_LESSON == "true") {
                         try {
-                            let data = await fetch(`https://lessons.zmartboard.cl/lesson_user_rating`, {
+                            let data = await fetch(process.env.INTERACTION_URL, {
                                 method: "POST",
                                 headers: {
                                     "Content-Type": "application/json",
@@ -327,7 +327,7 @@ router.post('/dialogflow', async (req, res) => {
         let output = req.body.queryResult.outputContexts;
         let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
         let data = {
-            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+            "name": `projects/zmartboard-wnxq/agent/sessions/${session}/contexts/recommendation-data`,
             "lifespanCount": 0,
             "parameters": {}
         }; 
@@ -360,7 +360,7 @@ router.post('/dialogflow', async (req, res) => {
         let session = output[0].name.split("agent/sessions/")[1].split("/")[0];
 
         output.push({
-            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/recommendation-data`,
+            "name": `projects/zmartboard-wnxq/agent/sessions/${session}/contexts/recommendation-data`,
             "lifespanCount": 20,
             "parameters": {
                 "contadorIntento": contador,
@@ -370,7 +370,7 @@ router.post('/dialogflow', async (req, res) => {
             }
         });
         output.push({
-            "name": `projects/quickstart-1565748608769/agent/sessions/${session}/contexts/prueba_numero`,
+            "name": `projects/zmartboard-wnxq/agent/sessions/${session}/contexts/prueba_numero`,
             "lifespanCount": 1
         });
         

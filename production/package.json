@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Dialogflow fulfillment webhook on AWS Lambda with ExpressJs",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "start": "node index.js"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
